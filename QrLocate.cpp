@@ -142,8 +142,8 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 
 		topRight = Points3[0];
 		topLeft  = Points3[1];
-		bottomRight = Points3[2];
-		bottomLeft  = Points3[3];
+		bottomRight = Points3[3];
+		bottomLeft  = Points3[2];
 	}
 	//如果size 的个数在4-9之间， 则是100/500 字符的二维码
 	else if (_vRect.size() >= 4 ) 
@@ -162,7 +162,7 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 				{
 					double classArea = classifiedRectangles[j][0].size.width * classifiedRectangles[j][0].size.height;
 
-					if (abs(area - classArea) <= 20)
+					if (abs(area - classArea) <= (area/7))
 					{
 						classifiedRectangles[j].push_back(_vRect[i]);
 						foundClass = true;
@@ -199,22 +199,24 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 		{
 			Points3.push_back(GetRelativePoint(filterAreaRect[i], srcCenterPoint));
 		}
+		std::sort(Points3.begin(), Points3.end(), comparePointsy);
 		//计算第四个点的位置
 		double dist12 = std::sqrt(std::pow(Points3[0].x - Points3[1].x, 2) + std::pow(Points3[0].y - Points3[1].y, 2));
 		double dist13 = std::sqrt(std::pow(Points3[0].x - Points3[2].x, 2) + std::pow(Points3[0].y - Points3[2].y, 2));
 		double dist23 = std::sqrt(std::pow(Points3[1].x - Points3[2].x, 2) + std::pow(Points3[1].y - Points3[2].y, 2));
 
+		
 		//找到最长边
-		double maxLength = std::max(dist12, std::max(dist13, dist23)) + 2;
+		double maxLength = std::max(dist12, std::max(dist13, dist23));
 		if (maxLength == dist12)
 		{
-			Point4.x = Points3[2].x + Points3[1].x - Points3[0].x;
-			Point4.y = Points3[2].y + Points3[1].y - Points3[0].y;
+			Point4.x = (Points3[0].x + Points3[1].x - Points3[2].x)-2 ;
+			Point4.y = (Points3[0].y + Points3[1].y - Points3[2].y)-2;
 		}
 		else if (maxLength == dist13)
 		{
 			Point4.x = Points3[1].x + Points3[2].x - Points3[0].x;
-			Point4.y = Points3[1].y + Points3[2].y - Points3[0].y;
+			Point4.y = Points3[1].y + Points3[3].y - Points3[0].y;
 		}
 		else
 		{
@@ -225,19 +227,20 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 
 		std::sort(Points3.begin(), Points3.end(), comparePointsy);
 
-		topRight = Points3[0];
-		topLeft = Points3[1];
-		bottomRight = Points3[2];
-		bottomLeft = Points3[3];
+		// 拓展操作，防止吃像素
+		topLeft = Points3[0];
+		topRight = Points3[1];
+		bottomRight = Points3[3];
+		bottomLeft = Points3[2];
 
 
 	}
 	else
 	{
-		topRight.x = 0;
-		topRight.y = 0;
-		topLeft.x = srcCX * 2;
+		topLeft.x = 0;
 		topLeft.y = 0;
+		topRight.x = srcCX * 2;
+		topRight.y = 0;
 		bottomRight.x = srcCX * 2;
 		bottomRight.y = srcCY * 2;
 		bottomLeft.x = 0;

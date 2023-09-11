@@ -24,6 +24,9 @@ public:
 
 };
 
+bool comparePoints(const cv::Point2f& point1, const cv::Point2f& point2) {
+	return (point1.x + point1.y) < (point2.x + point2.y);
+}
 static bool compareXPoints(const Point2f& p1, const Point2f& p2)
 {
 	return p1.x < p2.x;
@@ -263,13 +266,13 @@ static bool IsQrPoint(vector<Point>& contour, Mat& img)
 
 static Point2f GetRelativePoint(RotatedRect& _vRect, Point2f &_point) 
 {
-	RotatedRect Rect;
+
 	Point2f arrRectPoint[4];
 	vector<Point2f> vRectPoint;
 
 	Point2f OutputPoint;
-	int RectX = Rect.center.x;
-	int RectY = Rect.center.y;
+	int RectX = _vRect.center.x;
+	int RectY = _vRect.center.y;
 	int CenterX = _point.x;
 	int CenterY = _point.y;
 
@@ -282,19 +285,19 @@ static Point2f GetRelativePoint(RotatedRect& _vRect, Point2f &_point)
 
 	if (RectX < CenterX && RectY < CenterY) //在第一象限 
 	{
-		OutputPoint = vRectPoint[1];
+		OutputPoint = vRectPoint[0];
 	}
 	else if (RectX > CenterX && RectY < CenterY) //在第二象限
 	{
+		OutputPoint = vRectPoint[1];
+	}
+	else if (RectX > CenterX && RectY > CenterY) //在第三象限 [3]是右下
+	{
+		OutputPoint = vRectPoint[3]; 
+	}
+	else if (RectX < CenterX && RectY >CenterY) //在第四象限 
+	{
 		OutputPoint = vRectPoint[2];
-	}
-	else if (RectX > CenterX && RectY > CenterY) //在第三象限
-	{
-		OutputPoint = vRectPoint[3];
-	}
-	else if (RectX < CenterX && RectY >CenterY) //在第四象限
-	{
-		OutputPoint = vRectPoint[4];
 	}
 
 	return OutputPoint;
