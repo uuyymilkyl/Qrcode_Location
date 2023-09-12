@@ -157,53 +157,7 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 	// 如果刚好等于3 则直接计算出3个角点以及第四个角点 然后进行透视变换
 	if (_vRect.size() == 3) 
 	{
-
-		vector < Point2f> Points3;
-		Point2f Point4;
-		for (int i = 0; i < 3; i++)
-		{
-			Points3.push_back(GetRelativePoint(_vRect[i], srcCenterPoint));
-		}
-		//对三个点进行角度顺时针排序
-
-		Points3 = sortClockwise(Points3);
-		//计算第四个点的位置
-		double dist12 = std::sqrt(std::pow(Points3[0].x - Points3[1].x, 2) + std::pow(Points3[0].y - Points3[1].y, 2));
-		double dist13 = std::sqrt(std::pow(Points3[0].x - Points3[2].x, 2) + std::pow(Points3[0].y - Points3[2].y, 2));
-		double dist23 = std::sqrt(std::pow(Points3[1].x - Points3[2].x, 2) + std::pow(Points3[1].y - Points3[2].y, 2));
-
-
-		//找到最长边
-		double maxLength = std::max(dist12, std::max(dist13, dist23));
-		if (maxLength == dist12)
-		{
-			Point4.x = (Points3[0].x + Points3[1].x - Points3[2].x);
-			Point4.y = (Points3[0].y + Points3[1].y - Points3[2].y);
-		}
-		else if (maxLength == dist13)
-		{
-			Point4.x = Points3[0].x + Points3[2].x - Points3[1].x;
-			Point4.y = Points3[0].y + Points3[2].y - Points3[1].y;
-		}
-		else
-		{
-			Point4.x = Points3[0].x + Points3[2].x - Points3[1].x;
-			Point4.y = Points3[0].y + Points3[2].y - Points3[1].y;
-		}
-		Points3.push_back(Point4);
-
-		Points3 = sortClociWiseByXY(Points3);
-		topLeft.x = Points3[0].x - 5;
-		topLeft.y = Points3[0].y - 5;
-
-		topRight.x = Points3[1].x + 5;
-		topRight.y = Points3[1].y - 5;
-
-		bottomRight.x = Points3[2].x + 5;
-		bottomRight.y = Points3[2].y + 5;
-
-		bottomLeft.x = Points3[3].x - 5;
-		bottomLeft.y = Points3[3].y + 5;
+		DetQr_GetFourPoints(topLeft, topRight, bottomRight, bottomLeft, srcCenterPoint, _vRect);
 	}
 	//如果size 的个数在4-9之间， 则是100/500 字符的二维码
 	else if (_vRect.size() >= 4 ) 
@@ -306,7 +260,6 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 	cv::warpPerspective(_srcImg, result, perspectiveMatrix, cv::Size(width, height));
 
 	roi = result;
-
 
 
 	return roi;

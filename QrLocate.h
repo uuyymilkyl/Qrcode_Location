@@ -358,4 +358,35 @@ static Point2f GetRelativePoint(RotatedRect& _vRect, Point2f &_point)
 
 	return OutputPoint;
 }
+
+// 坐标点拓展
+static void expandQuadrilateral(vector<Point2f>& points, int offset)
+{
+
+	// 计算左侧边向量
+	Point2f leftVec = points[3] - points[0];
+	// 计算右侧边向量
+	Point2f rightVec = points[2] - points[1];
+
+	// 计算左侧边的单位法向量
+	Point2f leftNormal = Point2f(-leftVec.y, leftVec.x);
+	leftNormal /= norm(leftNormal);
+
+	// 计算右侧边的单位法向量
+	Point2f rightNormal = Point2f(rightVec.y, -rightVec.x);
+	rightNormal /= norm(rightNormal);
+
+	// 根据偏移量，计算四个新的顶点坐标
+	Point2f topLeft = points[0] - leftNormal * offset;
+	Point2f topRight = points[1] + rightNormal * offset;
+	Point2f bottomRight = points[2] + leftNormal * offset;
+	Point2f bottomLeft = points[3] - rightNormal * offset;
+
+	// 更新四个点的坐标
+	points[0] = topLeft;
+	points[1] = topRight;
+	points[2] = bottomRight;
+	points[3] = bottomLeft;
+
+}
 #endif 
