@@ -10,7 +10,8 @@ Mat DetectQrcode::DetQr_RotatePreprocess(Mat& _src)
 	vector<Point> center_all;
 
 	//threshold(srcGray, srcGray, 0, 255, THRESH_BINARY | THRESH_OTSU);
-	threshold(srcGray, srcGray, 133, 255, THRESH_BINARY );
+	srcGray = threshWithoutWhite(srcGray);
+	//threshold(srcGray, srcGray, 133, 255, THRESH_BINARY );
 	Canny(srcGray, srcGray, 50, 160, 3);
 	Mat erodeStruct = getStructuringElement(MORPH_RECT, Size(3, 3));
 	morphologyEx(srcGray, srcGray, MORPH_CLOSE, erodeStruct);

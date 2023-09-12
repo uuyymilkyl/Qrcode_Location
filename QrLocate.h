@@ -389,4 +389,29 @@ static void expandQuadrilateral(vector<Point2f>& points, int offset)
 	points[3] = bottomLeft;
 
 }
+
+static Mat threshWithoutWhite(Mat& _img) {
+	int graysum = 0;
+	int pixelsum = 0;
+	float thre = 0;
+	Mat img = _img.clone();
+	for (int i = 0; i < _img.cols; i++)
+	{
+		for( int j = 0 ; j < _img.rows ;j++)
+		{
+		
+			int gray = _img.at<uchar>(j, i);
+			if (gray == 255)
+				continue;
+			graysum += gray;
+			pixelsum += 1;
+
+		}
+	}
+	
+	thre = graysum / pixelsum;
+	threshold(img, img, thre, 255, THRESH_BINARY_INV);
+
+	return img;
+}
 #endif 
