@@ -14,7 +14,7 @@ int main()
 	{
 		Mat src;
 		Mat QRimg;
-		src = imread("6.bmp");
+		src = imread("3.jpg",0);
 
 		Mat binary = DetectQrcode::DetQr_RotatePreprocess(src);
 		vector<RotatedRect> rects = DetectQrcode::DetQr_filterByNestedContours(src, binary);

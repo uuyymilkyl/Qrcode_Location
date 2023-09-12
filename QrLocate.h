@@ -18,19 +18,31 @@ public:
 
 	static vector<RotatedRect> DetQr_filterByNestedContours(Mat& _srcImg, Mat& _binaryImg);   ///< 筛选后的回字
 
+	static void DetQr_GetFourPoints(Point2f& TopLeft, Point2f& TopRight, Point2f& BottomRight, Point2f& BotoomLeft , Point2f& srcCenter, vector<RotatedRect> &_filterAreaRect); // 通过筛选后的三个回字得到二维码角点坐标
+
 	static Mat DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRect);      ///< 对原图进行旋转并裁剪
 
 
 
 };
 
-bool comparePoints(const cv::Point2f& point1, const cv::Point2f& point2) {
-	return (point1.x + point1.y) < (point2.x + point2.y);
+// 计算点与图像起点的连线与x轴的夹角
+static float calculateAngle(const cv::Point2f& point, const cv::Point2f& startPoint) {
+	float dx = point.x - startPoint.x;
+	float dy = point.y - startPoint.y;
+	return std::atan2(dy, dx);
+}
+static int calculateDistance(const Point2f& point1, const Point2f& point2)
+{
+	/* 计算两个点之间的直线距离 */
+	double distance = std::sqrt(std::pow(point2.x - point1.x, 2) + std::pow(point2.y - point1.y, 2));
+	return static_cast<int>(std::round(distance));
 }
 static bool compareXPoints(const Point2f& p1, const Point2f& p2)
 {
-	return p1.x < p2.x;
+	return p1.x > p2.x;
 }
+
 
 static bool compareYPoints(const Point2f& p1, const Point2f& p2)
 {
@@ -52,6 +64,17 @@ static bool comparePointsy(const cv::Point& p1, const cv::Point& p2)
 	{
 		return p1.x < p2.x;
 	}
+
+}
+
+static bool comparePointsByAngle(const cv::Point2f& point1, const cv::Point2f& point2) 
+{
+	return calculateAngle(point1, cv::Point2f(0, 0)) < calculateAngle(point2, cv::Point2f(0, 0));
+}
+
+static bool comparePointsByDistace(const cv::Point2f& point1, const cv::Point2f& point2) {
+
+	return  calculateDistance(cv::Point2f(0, 0), point1) < calculateDistance(cv::Point2f(0, 0), point2);
 
 }
 
@@ -85,11 +108,52 @@ static void expandQuadrilateral(vector<Point2f>& points, int offset)
 
 }
 
-static int calculateDistance(const Point2f& point1, const Point2f& point2)
-{
-	/* 计算两个点之间的直线距离 */
-	double distance = std::sqrt(std::pow(point2.x - point1.x, 2) + std::pow(point2.y - point1.y, 2));
-	return static_cast<int>(std::round(distance));
+static vector<Point2f> sortClociWiseByXY(vector<Point2f>& points) {
+
+	vector<Point2f> vPoints4 = points;
+	Point2f vsortRectPoint[4];
+	vector<Point2f> result;
+	int rectcenterX = 0;
+	int rectcenterY = 0;
+	for (const auto& point : vPoints4) {
+		rectcenterX += point.x;
+		rectcenterY += point.y;
+	}
+	rectcenterX /= 4;
+	rectcenterY /= 4;
+
+	for (int i = 0; i < vPoints4.size(); i++)
+	{
+		if (vPoints4[i].x < rectcenterX && vPoints4[i].y < rectcenterY)
+			vsortRectPoint[0] = vPoints4[i];
+		if (vPoints4[i].x > rectcenterX && vPoints4[i].y < rectcenterY)
+			vsortRectPoint[1] = vPoints4[i];
+		if (vPoints4[i].x > rectcenterX && vPoints4[i].y > rectcenterY)
+			vsortRectPoint[2] = vPoints4[i];
+		if (vPoints4[i].x < rectcenterX && vPoints4[i].y > rectcenterY)
+			vsortRectPoint[3] = vPoints4[i];
+	}
+
+	for (int i = 0; i < 4; i++)
+	{
+		result.push_back(vsortRectPoint[i]);
+	}
+
+	return result;
+}
+
+static vector<cv::Point2f> sortClockwise(vector<cv::Point2f>& points) {
+	// 找到离图像起点最近的点
+	cv::Point2f startPoint = *std::min_element(points.begin(), points.end(), comparePointsByDistace);
+
+
+	// 根据角度进行排序
+	std::vector<cv::Point2f> sortedPoints = points;
+	std::sort(sortedPoints.begin(), sortedPoints.end(), [&](const cv::Point2f& point1, const cv::Point2f& point2) {
+		return calculateAngle(point1, startPoint) < calculateAngle(point2, startPoint);
+		});
+	cout << " " << endl;
+	return sortedPoints;
 }
 
 
@@ -144,7 +208,7 @@ static bool IsCorner(Mat& image)
 	imgCopy = image.clone();
 
 	// 转化为灰度图像
-	cvtColor(image, dstGray, COLOR_BGR2GRAY);
+	dstGray = ImageIsGray(image);
 	// 进行二值化
 
 	threshold(dstGray, dstGray, 0, 255, THRESH_BINARY | THRESH_OTSU);
@@ -269,35 +333,56 @@ static Point2f GetRelativePoint(RotatedRect& _vRect, Point2f &_point)
 
 	Point2f arrRectPoint[4];
 	vector<Point2f> vRectPoint;
-
+	Point2f vsortRectPoint[4];
 	Point2f OutputPoint;
 	int RectX = _vRect.center.x;
 	int RectY = _vRect.center.y;
+	//这是图像中心
 	int CenterX = _point.x;
 	int CenterY = _point.y;
+
 
 	_vRect.points(arrRectPoint);
 	for (int i = 0; i < 4; i++)
 	{
 		vRectPoint.push_back(arrRectPoint[i]);
 	}
-	std::sort(vRectPoint.begin(), vRectPoint.end(), comparePointsy);
+	int rectcenterX = 0;
+	int rectcenterY = 0;
+	for (const auto& point : vRectPoint) {
+		rectcenterX += point.x;
+		rectcenterY += point.y;
+	}
+	rectcenterX /= 4;
+	rectcenterY /= 4;
+
+	for (int i = 0; i < vRectPoint.size(); i++)
+	{
+		if (vRectPoint[i].x < rectcenterX && vRectPoint[i].y < rectcenterY)
+			vsortRectPoint[0] = vRectPoint[i];
+		if (vRectPoint[i].x > rectcenterX && vRectPoint[i].y < rectcenterY)
+			vsortRectPoint[1] = vRectPoint[i];
+		if (vRectPoint[i].x > rectcenterX && vRectPoint[i].y > rectcenterY)
+			vsortRectPoint[2] = vRectPoint[i];
+		if (vRectPoint[i].x < rectcenterX && vRectPoint[i].y > rectcenterY)
+			vsortRectPoint[3] = vRectPoint[i];
+	}
 
 	if (RectX < CenterX && RectY < CenterY) //在第一象限 
 	{
-		OutputPoint = vRectPoint[0];
+		OutputPoint = vsortRectPoint[0];
 	}
 	else if (RectX > CenterX && RectY < CenterY) //在第二象限
 	{
-		OutputPoint = vRectPoint[1];
+		OutputPoint = vsortRectPoint[1];
 	}
-	else if (RectX > CenterX && RectY > CenterY) //在第三象限 [3]是右下
+	else if (RectX > CenterX && RectY > CenterY) //在第三象限 
 	{
-		OutputPoint = vRectPoint[3]; 
+		OutputPoint = vsortRectPoint[2]; 
 	}
 	else if (RectX < CenterX && RectY >CenterY) //在第四象限 
 	{
-		OutputPoint = vRectPoint[2];
+		OutputPoint = vsortRectPoint[3];
 	}
 
 	return OutputPoint;

@@ -9,8 +9,8 @@ Mat DetectQrcode::DetQr_RotatePreprocess(Mat& _src)
 
 	vector<Point> center_all;
 
-	threshold(srcGray, srcGray, 0, 255, THRESH_BINARY | THRESH_OTSU);
-
+	//threshold(srcGray, srcGray, 0, 255, THRESH_BINARY | THRESH_OTSU);
+	threshold(srcGray, srcGray, 133, 255, THRESH_BINARY );
 	Canny(srcGray, srcGray, 50, 160, 3);
 	Mat erodeStruct = getStructuringElement(MORPH_RECT, Size(3, 3));
 	morphologyEx(srcGray, srcGray, MORPH_CLOSE, erodeStruct);
@@ -87,6 +87,58 @@ vector<RotatedRect> DetectQrcode::DetQr_filterByNestedContours(Mat& _srcImg, Mat
 // 用 for i  { for j }的书写方式会有点难看
 // 计算每个RotatedRect的面积，并且将其面积差值在20以内的分成一类 重新放进  vector<vector<RotatedRect>> 
 
+void DetectQrcode::DetQr_GetFourPoints(Point2f& TopLeft, Point2f& TopRight, Point2f& BottomRight, Point2f& BottomLeft,Point2f &srcCenter, vector<RotatedRect>& _filterAreaRect)
+{
+	vector<RotatedRect> filterRect = _filterAreaRect;
+	vector < Point2f> Points3;
+	Point2f Point4;
+	for (int i = 0; i < 3; i++)
+	{
+		Points3.push_back(GetRelativePoint(filterRect[i], srcCenter));
+	}
+	//对三个点进行角度顺时针排序
+
+	Points3 = sortClockwise(Points3);
+	//计算第四个点的位置
+	double dist12 = std::sqrt(std::pow(Points3[0].x - Points3[1].x, 2) + std::pow(Points3[0].y - Points3[1].y, 2));
+	double dist13 = std::sqrt(std::pow(Points3[0].x - Points3[2].x, 2) + std::pow(Points3[0].y - Points3[2].y, 2));
+	double dist23 = std::sqrt(std::pow(Points3[1].x - Points3[2].x, 2) + std::pow(Points3[1].y - Points3[2].y, 2));
+
+
+	//找到最长边
+	double maxLength = std::max(dist12, std::max(dist13, dist23));
+	if (maxLength == dist12)
+	{
+		Point4.x = (Points3[0].x + Points3[1].x - Points3[2].x);
+		Point4.y = (Points3[0].y + Points3[1].y - Points3[2].y);
+	}
+	else if (maxLength == dist13)
+	{
+		Point4.x = Points3[0].x + Points3[2].x - Points3[1].x;
+		Point4.y = Points3[0].y + Points3[2].y - Points3[1].y;
+	}
+	else
+	{
+		Point4.x = Points3[0].x + Points3[2].x - Points3[1].x;
+		Point4.y = Points3[0].y + Points3[2].y - Points3[1].y;
+	}
+	Points3.push_back(Point4);
+
+	Points3 = sortClociWiseByXY(Points3);
+	TopLeft.x = Points3[0].x - 5;
+	TopLeft.y = Points3[0].y - 5;
+
+	TopRight.x = Points3[1].x + 5;
+	TopRight.y = Points3[1].y - 5;
+
+	BottomRight.x = Points3[2].x + 5;
+	BottomRight.y = Points3[2].y + 5;
+
+	BottomLeft.x = Points3[3].x - 5;
+	BottomLeft.y = Points3[3].y + 5;
+
+}
+
 Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRect)
 {
 	//声明结果点
@@ -112,38 +164,46 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 		{
 			Points3.push_back(GetRelativePoint(_vRect[i], srcCenterPoint));
 		}
-		
+		//对三个点进行角度顺时针排序
 
+		Points3 = sortClockwise(Points3);
 		//计算第四个点的位置
 		double dist12 = std::sqrt(std::pow(Points3[0].x - Points3[1].x, 2) + std::pow(Points3[0].y - Points3[1].y, 2));
 		double dist13 = std::sqrt(std::pow(Points3[0].x - Points3[2].x, 2) + std::pow(Points3[0].y - Points3[2].y, 2));
 		double dist23 = std::sqrt(std::pow(Points3[1].x - Points3[2].x, 2) + std::pow(Points3[1].y - Points3[2].y, 2));
 
+
 		//找到最长边
-		double maxLength = std::max(dist12, std::max(dist13, dist23)) +2 ;
-		if (maxLength == dist12) 
+		double maxLength = std::max(dist12, std::max(dist13, dist23));
+		if (maxLength == dist12)
 		{
-			Point4.x = Points3[2].x + Points3[1].x - Points3[0].x;
-			Point4.y = Points3[2].y + Points3[1].y - Points3[0].y;
+			Point4.x = (Points3[0].x + Points3[1].x - Points3[2].x);
+			Point4.y = (Points3[0].y + Points3[1].y - Points3[2].y);
 		}
-		else if (maxLength == dist13) 
+		else if (maxLength == dist13)
 		{
-			Point4.x = Points3[1].x + Points3[2].x - Points3[0].x;
-			Point4.y = Points3[1].y + Points3[2].y - Points3[0].y;
+			Point4.x = Points3[0].x + Points3[2].x - Points3[1].x;
+			Point4.y = Points3[0].y + Points3[2].y - Points3[1].y;
 		}
-		else 
+		else
 		{
 			Point4.x = Points3[0].x + Points3[2].x - Points3[1].x;
 			Point4.y = Points3[0].y + Points3[2].y - Points3[1].y;
 		}
 		Points3.push_back(Point4);
 
-		std::sort(Points3.begin(), Points3.end(), comparePointsy);
+		Points3 = sortClociWiseByXY(Points3);
+		topLeft.x = Points3[0].x - 5;
+		topLeft.y = Points3[0].y - 5;
 
-		topRight = Points3[0];
-		topLeft  = Points3[1];
-		bottomRight = Points3[3];
-		bottomLeft  = Points3[2];
+		topRight.x = Points3[1].x + 5;
+		topRight.y = Points3[1].y - 5;
+
+		bottomRight.x = Points3[2].x + 5;
+		bottomRight.y = Points3[2].y + 5;
+
+		bottomLeft.x = Points3[3].x - 5;
+		bottomLeft.y = Points3[3].y + 5;
 	}
 	//如果size 的个数在4-9之间， 则是100/500 字符的二维码
 	else if (_vRect.size() >= 4 ) 
@@ -195,11 +255,18 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 		vector <RotatedRect> RotaedRect3;
 		vector <Point2f> Points3;
 		Point2f Point4;
+
+		// 错误处理
+		if (filterAreaRect.size() < 3)
+			return _srcImg;
+
 		for (int i = 0; i < 3; i++)
 		{
 			Points3.push_back(GetRelativePoint(filterAreaRect[i], srcCenterPoint));
 		}
-		std::sort(Points3.begin(), Points3.end(), comparePointsy);
+		//std::sort(Points3.begin(), Points3.end(), comparePointsy);
+		//std::sort(Points3[1], Points3[2], comparePointsy);
+		Points3 = sortClockwise(Points3);
 		//计算第四个点的位置
 		double dist12 = std::sqrt(std::pow(Points3[0].x - Points3[1].x, 2) + std::pow(Points3[0].y - Points3[1].y, 2));
 		double dist13 = std::sqrt(std::pow(Points3[0].x - Points3[2].x, 2) + std::pow(Points3[0].y - Points3[2].y, 2));
@@ -210,13 +277,13 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 		double maxLength = std::max(dist12, std::max(dist13, dist23));
 		if (maxLength == dist12)
 		{
-			Point4.x = (Points3[0].x + Points3[1].x - Points3[2].x)-2 ;
-			Point4.y = (Points3[0].y + Points3[1].y - Points3[2].y)-2;
+			Point4.x = (Points3[0].x + Points3[1].x - Points3[2].x);
+			Point4.y = (Points3[0].y + Points3[1].y - Points3[2].y);
 		}
 		else if (maxLength == dist13)
 		{
-			Point4.x = Points3[1].x + Points3[2].x - Points3[0].x;
-			Point4.y = Points3[1].y + Points3[3].y - Points3[0].y;
+			Point4.x = Points3[0].x + Points3[2].x - Points3[1].x ;
+			Point4.y = Points3[0].y + Points3[2].y - Points3[1].y ;
 		}
 		else
 		{
@@ -225,13 +292,20 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 		}
 		Points3.push_back(Point4);
 
-		std::sort(Points3.begin(), Points3.end(), comparePointsy);
+		Points3 = sortClociWiseByXY(Points3);
 
-		// 拓展操作，防止吃像素
-		topLeft = Points3[0];
-		topRight = Points3[1];
-		bottomRight = Points3[3];
-		bottomLeft = Points3[2];
+		// 赋值并拓展操作，防止吃像素
+		topLeft.x = Points3[0].x -5;
+		topLeft.y = Points3[0].y - 5;
+
+		topRight.x = Points3[1].x + 5;
+		topRight.y = Points3[1].y - 5;
+
+		bottomRight.x = Points3[2].x +5;
+		bottomRight.y = Points3[2].y + 5;
+
+		bottomLeft.x = Points3[3].x -5;
+		bottomLeft.y = Points3[3].y + 5;
 
 
 	}
