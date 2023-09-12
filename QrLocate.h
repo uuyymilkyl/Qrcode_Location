@@ -32,23 +32,29 @@ static float calculateAngle(const cv::Point2f& point, const cv::Point2f& startPo
 	float dy = point.y - startPoint.y;
 	return std::atan2(dy, dx);
 }
+
+// 计算两个点之间的直线距离 
 static int calculateDistance(const Point2f& point1, const Point2f& point2)
 {
-	/* 计算两个点之间的直线距离 */
+	
 	double distance = std::sqrt(std::pow(point2.x - point1.x, 2) + std::pow(point2.y - point1.y, 2));
 	return static_cast<int>(std::round(distance));
 }
-static bool compareXPoints(const Point2f& p1, const Point2f& p2)
+
+// 计算平均面积
+static double calculateAverageArea(const vector<RotatedRect>& rects)
 {
-	return p1.x > p2.x;
+	double totalArea = 0.0;
+	for (int i = 0; i < rects.size(); i++)
+	{
+		double area = rects[i].size.width * rects[i].size.height;
+		totalArea += area;
+	}
+	return totalArea / rects.size();
 }
 
 
-static bool compareYPoints(const Point2f& p1, const Point2f& p2)
-{
-	return p1.x < p2.x;
-}
-
+// Bool比较 通过xy 坐标判断角点顺序 （不适配多种旋转情况）
 static bool comparePointsy(const cv::Point& p1, const cv::Point& p2)
 {
 	if (p1.y < p2.y)
@@ -67,47 +73,21 @@ static bool comparePointsy(const cv::Point& p1, const cv::Point& p2)
 
 }
 
+// Bool比较 通过与x轴夹角对角度排序
 static bool comparePointsByAngle(const cv::Point2f& point1, const cv::Point2f& point2) 
 {
 	return calculateAngle(point1, cv::Point2f(0, 0)) < calculateAngle(point2, cv::Point2f(0, 0));
 }
 
+// Bool比较 通过与起点的距离对角点排序
 static bool comparePointsByDistace(const cv::Point2f& point1, const cv::Point2f& point2) {
 
 	return  calculateDistance(cv::Point2f(0, 0), point1) < calculateDistance(cv::Point2f(0, 0), point2);
 
 }
 
-static void expandQuadrilateral(vector<Point2f>& points, int offset)
-{
 
-	// 计算左侧边向量
-	Point2f leftVec = points[3] - points[0];
-	// 计算右侧边向量
-	Point2f rightVec = points[2] - points[1];
-
-	// 计算左侧边的单位法向量
-	Point2f leftNormal = Point2f(-leftVec.y, leftVec.x);
-	leftNormal /= norm(leftNormal);
-
-	// 计算右侧边的单位法向量
-	Point2f rightNormal = Point2f(rightVec.y, -rightVec.x);
-	rightNormal /= norm(rightNormal);
-
-	// 根据偏移量，计算四个新的顶点坐标
-	Point2f topLeft = points[0] - leftNormal * offset;
-	Point2f topRight = points[1] + rightNormal * offset;
-	Point2f bottomRight = points[2] + leftNormal * offset;
-	Point2f bottomLeft = points[3] - rightNormal * offset;
-
-	// 更新四个点的坐标
-	points[0] = topLeft;
-	points[1] = topRight;
-	points[2] = bottomRight;
-	points[3] = bottomLeft;
-
-}
-
+// 通过xy所在象限顺时针排序角点
 static vector<Point2f> sortClociWiseByXY(vector<Point2f>& points) {
 
 	vector<Point2f> vPoints4 = points;
@@ -142,6 +122,7 @@ static vector<Point2f> sortClociWiseByXY(vector<Point2f>& points) {
 	return result;
 }
 
+// 通过角度+原点距离 顺时针排序角点
 static vector<cv::Point2f> sortClockwise(vector<cv::Point2f>& points) {
 	// 找到离图像起点最近的点
 	cv::Point2f startPoint = *std::min_element(points.begin(), points.end(), comparePointsByDistace);
@@ -168,16 +149,7 @@ static Mat ImageIsGray(const Mat& _image)
 	return img;
 }
 
-static double calculateAverageArea(const vector<RotatedRect>& rects)
-{
-	double totalArea = 0.0;
-	for (int i =0; i < rects.size(); i++)
-	{
-		double area = rects[i].size.width * rects[i].size.height;
-		totalArea += area;
-	}
-	return totalArea / rects.size();
-}
+
 
 // 计算内部所有白色部分占全部的比率  作者：bubbliiiing
 static double Rate(Mat& count)
@@ -327,7 +299,6 @@ static bool IsQrPoint(vector<Point>& contour, Mat& img)
 }
 
 // 用于定位矩形位置相对象限的角点，如果在第一象限则取左上为返回值，如果在第二象限则取右上为返回值，如果在第三象限则取右下，第四象限则取左下。
-
 static Point2f GetRelativePoint(RotatedRect& _vRect, Point2f &_point) 
 {
 
