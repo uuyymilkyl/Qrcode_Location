@@ -286,7 +286,7 @@ Mat DetectQrcode::DetQr_CropRotateQrimg(Mat &_srcImg, vector<RotatedRect> &_vRec
 			bottomLeft
 	};
 
-	expandQuadrilateral(finalPoint4, 6);
+	(finalPoint4, 6);
 
 	int width = calculateDistance(topLeft, topRight) + 8;
 	int height = calculateDistance(topLeft, bottomLeft) + 8;
